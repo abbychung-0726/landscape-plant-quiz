@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>造園乙級植物識別 - 練習刷題系統</title>
+    <!-- 引入折線圖庫 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #e8f5e9;
+            --primary-dark: #1b5e20;
+            --bg: #f4f6f8;
+            --card: #ffffff;
+            --text: #2c3e50;
+            --border: #cfd8dc;
+            --correct-bg: #e8f5e9;
+            --correct-border: #2e7d32;
+            --wrong-bg: #ffebee;
+            --wrong-border: #c62828;
+            --accent: #e65100;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 12px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 680px; background: var(--card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
+        
+        .header { background: var(--primary); color: white; padding: 16px 18px; text-align: center; }
+        .header h1 { font-size: 1.3rem; font-weight: 700; }
+        
+        /* 頂部頁籤 */
+        .top-nav { display: flex; background: #e8f5e9; border-bottom: 2px solid var(--border); }
+        .top-nav-btn { flex: 1; padding: 12px; border: none; background: transparent; font-weight: 700; font-size: 0.95rem; color: #2e7d32; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .top-nav-btn.active { background: white; color: var(--primary-dark); border-bottom: 3px solid var(--primary); }
+
+        .content-section { padding: 18px; }
+        
+        .setup-box { text-align: center; background: #fff; }
+        .setup-box input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin: 10px 0; }
+        
+        .category-select-area { margin: 15px 0; text-align: left; background: #f8f9fa; padding: 14px; border-radius: 10px; border: 1px solid var(--border); }
+        .category-select-area h4 { font-size: 0.95rem; color: var(--primary-dark); margin-bottom: 8px; font-weight: 700; }
+        .cat-chips-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        
+        /* 橢圓膠囊標籤按鈕 */
+        .cat-chip { padding: 6px 13px; border-radius: 20px; border: 1.5px solid var(--border); background: white; font-size: 0.85rem; font-weight: 600; color: #444; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; }
+        .cat-chip.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 2px 6px rgba(46,125,50,0.3); }
+        .cat-chip-wrong { color: #d84315; border-color: #ffccbc; }
+        .cat-chip-wrong.active { background: var(--accent) !important; color: white !important; border-color: var(--accent) !important; box-shadow: 0 2px 6px rgba(230,81,0,0.3) !important; }
+
+        .mode-selector { display: flex; background: #e8f5e9; padding: 6px; border-radius: 10px; margin-bottom: 15px; }
+        .mode-btn { flex: 1; padding: 10px; text-align: center; border: none; background: transparent; font-weight: 700; font-size: 0.9rem; color: #388e3c; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+        .mode-btn.active { background: white; color: var(--primary-dark); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+        
+        .progress-bar-container { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+        
+        .stats { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #555; margin-bottom: 14px; font-weight: 600; }
+        .tag { background: #eff3f6; color: #37474f; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #d0d7de; }
+        
+        .image-container { position: relative; width: 100%; height: 280px; background: #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; }
+        .plant-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .img-nav { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.65); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; }
+        .prev-img, .next-img { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; padding: 12px 10px; cursor: pointer; border-radius: 4px; font-size: 1.2rem; }
+        .prev-img { left: 6px; } .next-img { right: 6px; }
+        
+        .four-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .img-card { position: relative; height: 150px; background: #0f172a; border-radius: 10px; overflow: hidden; border: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
+        .img-card img { width: 100%; height: 100%; object-fit: contain; }
+        .img-card-label { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.75); color: white; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.9rem; }
+        .img-card.selected { border-color: #0288d1; box-shadow: 0 0 10px rgba(2,136,209,0.5); }
+        .img-card.correct { border-color: #2e7d32 !important; box-shadow: 0 0 10px rgba(46,125,50,0.6); }
+        .img-card.wrong { border-color: #c62828 !important; box-shadow: 0 0 10px rgba(198,40,40,0.6); }
+
+        .question-text { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; line-height: 1.45; color: #1a252f; }
+        .options-grid { display: grid; gap: 10px; margin-bottom: 18px; }
+        .option-btn { text-align: left; padding: 13px 15px; border: 2px solid var(--border); background: white; border-radius: 10px; font-size: 0.95rem; font-weight: 600; color: #333; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: space-between; line-height: 1.45; }
+        .option-btn.selected { border-color: #0288d1; background: #e1f5fe; color: #01579b; }
+        .option-btn.correct { border-color: #2e7d32 !important; background: #e8f5e9 !important; color: #1b5e20 !important; }
+        .option-btn.wrong { border-color: #c62828 !important; background: #ffebee !important; color: #b71c1c !important; }
+
+        .action-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: background 0.2s; text-align: center; margin-bottom: 14px; }
+        .action-btn:hover { background: var(--primary-dark); }
+
+        .feedback-box { background: #f8f9fa; border-left: 5px solid var(--primary); padding: 15px; border-radius: 8px; font-size: 0.9rem; line-height: 1.6; margin-bottom: 18px; display: none; }
+        .feedback-box h4 { font-size: 1rem; color: var(--primary); margin-bottom: 8px; font-weight: 700; }
+        
+        .id-card-layout { display: flex; gap: 12px; align-items: flex-start; margin-top: 4px; }
+        .id-card-text { flex: 1; font-size: 0.88rem; line-height: 1.5; color: #333; }
+        .id-card-thumb { width: 100px; height: 100px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; background: #eee; }
+
+        details { background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; padding: 8px 12px; }
+        summary { font-weight: bold; cursor: pointer; color: var(--primary-dark); }
+        .details-content { margin-top: 8px; font-size: 0.85rem; color: #444; border-top: 1px dashed #eee; padding-top: 6px; }
+
+        .result-screen { text-align: center; display: none; }
+        .score-circle { width: 130px; height: 130px; border-radius: 50%; background: #e8f5e9; border: 6px solid var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 15px auto; }
+        .score-num { font-size: 2rem; font-weight: 800; color: #1b5e20; }
+        
+        .review-card { text-align: left; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 18px; border-left: 6px solid #c62828; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .review-card .review-title { font-size: 1.05rem; font-weight: bold; margin-bottom: 10px; color: #1a252f; line-height: 1.4; }
+        .review-card .review-img-box { position: relative; width: 100%; height: 220px; background: #0f172a; border-radius: 10px; overflow: hidden; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; }
+        .review-card .review-four-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .review-card .review-four-card { position: relative; height: 130px; background: #0f172a; border-radius: 8px; overflow: hidden; border: 3px solid #e0e0e0; }
+
+        /* 歷史記錄專用樣式 */
+        .time-filter-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+        .history-scroll-box { max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 18px; background: #fff; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 0.88rem; }
+        .history-item:last-child { border-bottom: none; }
+        .history-badge { font-weight: bold; padding: 3px 8px; border-radius: 4px; color: white; font-size: 0.85rem; }
+        .badge-pass { background: #2e7d32; }
+        .badge-fail { background: #c62828; }
+        .chart-container { position: relative; width: 100%; height: 260px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <h1>造園乙級植物識別 - 練習刷題系統</h1>
+    </div>
+
+    <!-- 頂部導覽頁籤 -->
+    <div class="top-nav">
+        <button class="top-nav-btn active" id="tab-quiz" onclick="switchMainTab('quiz')">📝 測驗刷題</button>
+        <button class="top-nav-btn" id="tab-history" onclick="switchMainTab('history')">📊 考試成績歷史</button>
+        <button class="top-nav-btn" id="tab-wrongbook" onclick="switchMainTab('wrongbook')">📕 累積錯題本</button>
+    </div>
+
+    <!-- 頁面 1：測驗刷題區 -->
+    <div id="section-quiz" class="content-section">
+        <!-- 首頁設定與範圍選取區 -->
+        <div class="setup-box" id="setup-box">
+            <h3 style="color: var(--primary); margin-bottom: 6px;">🔗 連線至 Google Sheets 資料庫</h3>
+            <input type="text" id="sheet-url-input" value="https://docs.google.com/spreadsheets/d/1Y6uI1UeaQwakn5AcgB_l5I5kLMYuXua4zPErlXNRVK0/edit?usp=sharing">
+            
+            <button class="action-btn" id="load-db-btn" onclick="startLoadingData()" style="margin-bottom: 0;">📥 載入試算表資料</button>
+            <p id="loading-status" style="margin-top: 10px; font-size: 0.9rem; font-weight: bold; color: var(--primary);"></p>
+
+            <div id="category-selector-container" style="display: none;" class="category-select-area">
+                <h4>🌿 請選擇考試範圍：</h4>
+                <div class="cat-chips-grid" id="cat-chips-box"></div>
+                
+                <button class="action-btn" onclick="startQuizAction()" style="margin-top: 15px; margin-bottom: 0;">🚀 開始測驗</button>
+            </div>
+        </div>
+
+        <!-- 考試中畫面 -->
+        <div id="quiz-screen" style="display: none;">
+            <div class="mode-selector" id="mode-selector-bar">
+                <button class="mode-btn active" id="mode-practice" onclick="handleModeSwitch('practice')">💡 練習模式 (10題/即時對答案)</button>
+                <button class="mode-btn" id="mode-exam" onclick="handleModeSwitch('exam')">📝 模擬考模式 (50題/交卷算分)</button>
+            </div>
+
+            <div class="progress-bar-container"><div class="progress-bar" id="progress"></div></div>
+            
+            <div class="stats">
+                <span id="question-count">題目 1 / 10</span>
+                <span class="tag" id="question-type-tag">【題型】</span>
+                <span id="score-display">得分：0</span>
+            </div>
+
+            <div class="question-text" id="question-text">題目載入中...</div>
+            
+            <div class="image-container" id="single-img-container" style="display: none;">
+                <img id="plant-image" class="plant-img" src="" alt="植物照片">
+                <button class="prev-img" onclick="changeImage(-1)">❮</button>
+                <button class="next-img" onclick="changeImage(1)">❯</button>
+                <div class="img-nav" id="img-nav-text">部位圖片 1 / 2</div>
+            </div>
+
+            <div class="four-img-grid" id="four-img-container" style="display: none;">
+                <div class="img-card" id="img-card-A" onclick="toggleFourImgSelect('A')"><span class="img-card-label">A</span><img id="img-A" src="" alt="Photo A"></div>
+                <div class="img-card" id="img-card-B" onclick="toggleFourImgSelect('B')"><span class="img-card-label">B</span><img id="img-B" src="" alt="Photo B"></div>
+                <div class="img-card" id="img-card-C" onclick="toggleFourImgSelect('C')"><span class="img-card-label">C</span><img id="img-C" src="" alt="Photo C"></div>
+                <div class="img-card" id="img-card-D" onclick="toggleFourImgSelect('D')"><span class="img-card-label">D</span><img id="img-D" src="" alt="Photo D"></div>
+            </div>
+            
+            <div class="options-grid" id="options-container"></div>
+            
+            <button class="action-btn" id="confirm-btn" onclick="confirmAnswer()">確認答案</button>
+            
+            <div class="feedback-box" id="feedback-box">
+                <h4 id="feedback-title">正解解析卡</h4>
+                <div id="feedback-content"></div>
+            </div>
+            
+            <button class="action-btn" id="next-btn" onclick="nextQuestion()" style="display: none;">下一題 ➔</button>
+        </div>
+        
+        <!-- 結算畫面 -->
+        <div class="result-screen" id="result-screen">
+            <h2>🎉 測驗完成！</h2>
+            <div class="score-circle">
+                <div class="score-num" id="final-percentage">88%</div>
+                <div style="font-size: 0.8rem; color: #555;">得分百分比</div>
+            </div>
+            <div id="result-summary" style="margin-bottom: 15px; font-size: 1.05rem; font-weight: bold;"></div>
+            
+            <h3 style="text-align: left; margin-bottom: 12px; color: #c62828;">❌ 本次錯題檢討：</h3>
+            <div id="review-list"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="action-btn" onclick="initQuiz()" style="flex: 1;">🔄 重新測驗</button>
+                <button class="action-btn" onclick="backToScopeSelection()" style="flex: 1; background: #546e7a;">🌿 選擇其他範圍</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 頁面 2：考試成績歷史與曲線圖 -->
+    <div id="section-history" class="content-section" style="display: none;">
+        <h3 style="color: var(--primary); margin-bottom: 12px;">📊 歷次考試成績記錄</h3>
+        
+        <!-- 時間軸篩選膠囊列 -->
+        <div class="time-filter-bar">
+            <button class="cat-chip active" id="tf-all" onclick="setTimeFilter('ALL')">全部時間</button>
+            <button class="cat-chip" id="tf-day" onclick="setTimeFilter('DAY')">📅 今日</button>
+            <button class="cat-chip" id="tf-week" onclick="setTimeFilter('WEEK')">🗓️ 本週 (近7天)</button>
+            <button class="cat-chip" id="tf-month" onclick="setTimeFilter('MONTH')">📆 本月 (近30天)</button>
+        </div>
+
+        <div class="history-scroll-box" id="history-list-box">
+            <p style="text-align: center; color: #888; padding: 20px;">尚未有考試記錄，快去刷題吧！</p>
+        </div>
+
+        <h4 style="margin-top: 15px; margin-bottom: 8px; color: #333;">📈 成績起伏折線圖</h4>
+        <div class="chart-container">
+            <canvas id="scoreChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 頁面 3：累積錯題本 -->
+    <div id="section-wrongbook" class="content-section" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="color: #c62828;">📕 累積錯題本 (<span id="wrong-count-badge">0</span> 題)</h3>
+            <button class="cat-chip" onclick="clearWrongBook()" style="color: #c62828; border-color: #c62828;">清空錯題本</button>
+        </div>
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">以下為歷次測驗選錯之完整題目與選項，可於首頁選擇「🔥 錯題重考」進行消滅！</p>
+        
+        <div id="wrong-book-list"></div>
+    </div>
+</div>
+
+<script>
+    let plantDatabase = [], filteredPlantDatabase = [], availableCategories = [], selectedCategory = 'ALL';
+    let currentMode = 'practice', currentQuestions = [], currentIndex = 0, scoreCount = 0;
+    let userSelectedOptions = [], isAnswerSubmitted = false;
+    let currentImageIndex = 0, currentPlantImages = [];
+    let sessionUserAnswers = []; 
+    let scoreChartInstance = null;
+    let currentTimeFilter = 'ALL'; // 時間軸篩選狀態: ALL, DAY, WEEK, MONTH
+
+    // --- 本機儲存 (localStorage) 管理 ---
+    function getStoredHistory() {
+        return JSON.parse(localStorage.getItem('plant_quiz_history') || '[]');
+    }
+    function saveExamHistory(record) {
+        let list = getStoredHistory();
+        list.push(record);
+        localStorage.setItem('plant_quiz_history', JSON.stringify(list));
+    }
+    function getStoredWrongBook() {
+        return JSON.parse(localStorage.getItem('plant_quiz_wrong_book_v2') || '[]');
+    }
+    function saveToWrongBook(record) {
+        let book = getStoredWrongBook();
+        // 依照題目與植物 ID 去重
+        if (!book.some(item => item.question.rawTitle === record.question.rawTitle && item.question.plant.id === record.question.plant.id)) {
+            book.push(record);
+            localStorage.setItem('plant_quiz_wrong_book_v2', JSON.stringify(book));
+        }
+        renderCategorySelector();
+    }
+    function removeFromWrongBook(questionObj) {
+        let book = getStoredWrongBook();
+        book = book.filter(item => !(item.question.rawTitle === questionObj.rawTitle && item.question.plant.id === questionObj.plant.id));
+        localStorage.setItem('plant_quiz_wrong_book_v2', JSON.stringify(book));
+        renderCategorySelector();
+    }
+
+    // --- 頁籤切換 ---
+    function switchMainTab(tab) {
+        ['quiz', 'history', 'wrongbook'].forEach(t => {
+            document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+            document.getElementById(`section-${t}`).style.display = (t === tab) ? 'block' : 'none';
+        });
+        if (tab === 'history') renderHistoryTab();
+        if (tab === 'wrongbook') renderWrongBookTab();
+    }
+
+    function convertGoogleDriveUrl(url) {
+        if (!url) return '';
+        url = String(url).trim();
+        if (url.includes('drive.google.com')) {
+            let fileId = '';
+            if (url.includes('/file/d/')) {
+                const match = url.match(/\/file\/d\/([^\/]+)/);
+                if (match && match[1]) fileId = match[1];
+            } else if (url.includes('id=')) {
+                const match = url.match(/id=([^&]+)/);
+                if (match && match[1]) fileId = match[1];
+            }
+            if (fileId) return `https://lh3.googleusercontent.com/d/${fileId}`;
+        }
+        return url;
+    }
+
+    function getCellValue(cell) {
+        if (!cell) return '';
+        if (cell.v !== undefined && cell.v !== null) return String(cell.v).trim();
+        if (cell.f !== undefined && cell.f !== null) return String(cell.f).trim();
+        return '';
+    }
+
+    function extractSheetId(inputUrl) {
+        const match = inputUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        return match ? match[1] : null;
+    }
+
+    function splitByDelimiters(str) {
+        if (!str) return [];
+        return String(str).split(/[,，、\n]+/).map(s => s.trim()).filter(s => s !== '');
+    }
+
+    function isFragmentMatching(plant, fragment) {
+        if (!fragment || !plant) return false;
+        let clean = fragment.replace(/^(科別|分類|大類|原產地|特徵|用途|生態|繁殖|花期|環境|生長環境)：/, '').trim();
+        let fullPlantText = [plant.mainCategory, plant.family, plant.category, plant.origin, plant.features, plant.usage, plant.ecology, plant.propagation, plant.floweringSeason, plant.environment].join('、');
+
+        if (clean.includes('林下') || clean.includes('耐陰') || clean.includes('耐蔭') || clean.includes('半日照') || clean.includes('遮陰')) {
+            return fullPlantText.includes('林下') || fullPlantText.includes('陰') || fullPlantText.includes('蔭') || fullPlantText.includes('半日照');
+        }
+        if (clean.includes('全日照') || clean.includes('喜光') || clean.includes('陽性')) return fullPlantText.includes('全日照') || fullPlantText.includes('喜陽') || fullPlantText.includes('向陽');
+        if (clean.includes('海拔')) return fullPlantText.includes(clean);
+        if (clean.includes('鳥')) return fullPlantText.includes('鳥');
+        if (clean.includes('蜜源') || clean.includes('誘蝶')) return fullPlantText.includes('蜜源') || fullPlantText.includes('蝶') || fullPlantText.includes('蜂');
+        if (fragment.startsWith('原產地：')) return plant.origin && plant.origin.includes(clean);
+        if (fragment.startsWith('科別：')) return plant.family && (plant.family.includes(clean) || clean.includes(plant.family));
+
+        if (clean.includes('落葉喬木')) return fullPlantText.includes('落葉喬木') || fullPlantText.includes('落葉大喬木') || fullPlantText.includes('落葉中喬木') || fullPlantText.includes('落葉小喬木');
+        if (clean.includes('常綠喬木')) return fullPlantText.includes('常綠喬木') || fullPlantText.includes('常綠大喬木') || fullPlantText.includes('常綠中喬木') || fullPlantText.includes('常綠小喬木');
+        if (clean.includes('經濟造林') || clean.includes('造林')) return fullPlantText.includes('造林') || fullPlantText.includes('經濟');
+        if (clean.includes('傢俱') || clean.includes('家具') || clean.includes('建材')) return fullPlantText.includes('傢俱') || fullPlantText.includes('家具') || fullPlantText.includes('建材') || fullPlantText.includes('木材');
+
+        if (plant.rawTraits.some(t => t === clean || t.includes(clean) || clean.includes(t))) return true;
+        return fullPlantText.includes(clean);
+    }
+
+    function startLoadingData() {
+        const inputUrl = document.getElementById('sheet-url-input').value;
+        const sheetId = extractSheetId(inputUrl);
+        if (!sheetId) { alert("請輸入有效的 Google Sheets 網址！"); return; }
+        document.getElementById('loading-status').innerText = "⏳ 正在讀取試算表資料中...";
+
+        window.handleGvizResponse = function(response) {
+            try {
+                if (!response || !response.table || !response.table.rows) {
+                    document.getElementById('loading-status').innerText = "❌ 讀取失敗，請確認表格內容。";
+                    return;
+                }
+                const rows = response.table.rows;
+                plantDatabase = [];
+                let currentInheritedCategory = '一般景觀植物';
+
+                for (let i = 0; i < rows.length; i++) {
+                    const c = rows[i].c;
+                    if (!c) continue;
+                    let rawMainCat = getCellValue(c[0]);
+                    if (rawMainCat && !['大類', '植物大類別', '分類', '類別', '種類', 'ID'].includes(rawMainCat)) currentInheritedCategory = rawMainCat;
+
+                    const id = getCellValue(c[1]) || (i + 1);
+                    const name = getCellValue(c[2]); 
+                    if (i === 0 && (name === 'Plant name' || name === 'plant name' || name.includes('名稱'))) continue;
+                    if (!name) continue;
+
+                    const family = getCellValue(c[3]);
+                    const category = getCellValue(c[4]);
+                    const origin = getCellValue(c[5]);
+                    const features = getCellValue(c[6]);
+                    const usage = getCellValue(c[7]);
+                    const ecology = getCellValue(c[8]);
+                    const propagation = getCellValue(c[9]);
+                    const floweringSeason = getCellValue(c[10]);
+                    const environment = getCellValue(c[11]);
+
+                    let rawImages = getCellValue(c[12]);
+                    if (!rawImages) {
+                        for (let colIdx = 11; colIdx < c.length; colIdx++) {
+                            const val = getCellValue(c[colIdx]);
+                            if (val && (val.includes('http') || val.includes('drive.google.com') || val.includes('googleusercontent.com'))) { rawImages = val; break; }
+                        }
+                    }
+                    const imageUrls = rawImages.split(/[,，\n]+/).map(u => convertGoogleDriveUrl(u)).filter(u => u !== '');
+
+                    let fList = splitByDelimiters(family).map(s => `科別：${s}`);
+                    let catList = splitByDelimiters(category).map(s => `${s}`);
+                    let oList = origin ? [`原產地：${origin.trim()}`] : [];
+                    let featList = splitByDelimiters(features).filter(s => s.length >= 2).map(s => `${s}`);
+                    let uList = splitByDelimiters(usage).filter(s => s.length >= 2).map(s => `用途：${s}`);
+                    let ecoList = splitByDelimiters(ecology).filter(s => s.length >= 2).map(s => `${s}`);
+                    let propList = splitByDelimiters(propagation).map(s => `繁殖：${s}`);
+                    let flowerList = splitByDelimiters(floweringSeason).map(s => `花期：${s}`);
+                    let envList = environment ? splitByDelimiters(environment).filter(s => s.length >= 2).map(s => `環境：${s}`) : [];
+
+                    let traitsPool = [...fList, ...catList, ...oList, ...featList, ...uList, ...ecoList, ...propList, ...flowerList, ...envList];
+
+                    plantDatabase.push({
+                        id: id,
+                        mainCategory: currentInheritedCategory,
+                        name: name,
+                        family: family ? family.trim() : '未標示',
+                        category: category,
+                        origin: origin ? origin.trim() : '未標示',
+                        features: features,
+                        usage: usage,
+                        ecology: ecology,
+                        propagation: propagation,
+                        floweringSeason: floweringSeason,
+                        environment: environment ? environment.trim() : '',
+                        rawTraits: [...splitByDelimiters(family), ...splitByDelimiters(category), ...(origin ? [origin.trim()] : []), ...splitByDelimiters(features), ...splitByDelimiters(usage), ...splitByDelimiters(ecology), ...splitByDelimiters(propagation), ...splitByDelimiters(floweringSeason), ...(environment ? splitByDelimiters(environment) : [])],
+                        traitsPool: traitsPool.length > 0 ? traitsPool : [`名稱：${name}`],
+                        images: imageUrls.length > 0 ? imageUrls : ['https://via.placeholder.com/400x300?text=無圖片']
+                    });
+                }
+
+                if (plantDatabase.length > 0) {
+                    document.getElementById('loading-status').innerText = `✅ 成功載入全部 ${plantDatabase.length} 株植物資料！`;
+                    document.getElementById('load-db-btn').style.display = 'none';
+                    renderCategorySelector();
+                } else {
+                    document.getElementById('loading-status').innerText = "❌ 表格中沒有發現有效的植物資料。";
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('loading-status').innerText = "❌ 資料處理時發生錯誤。";
+            }
+        };
+
+        const jsonpUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:handleGvizResponse`;
+        const script = document.createElement('script');
+        script.src = jsonpUrl;
+        script.onerror = () => document.getElementById('loading-status').innerText = "❌ 載入失敗！請確認該 Google Sheets 已開啟檢視權限。";
+        document.body.appendChild(script);
+    }
+
+    // 渲染範圍選擇按鈕（錯題膠囊標籤一體化呈現）
+    function renderCategorySelector() {
+        availableCategories = Array.from(new Set(plantDatabase.map(p => p.mainCategory))).filter(c => c && c.trim() !== '');
+        let wrongBook = getStoredWrongBook();
+        
+        let html = `<button class="cat-chip ${selectedCategory==='ALL'?'active':''}" id="chip-ALL" onclick="selectCategory('ALL')">🌟 全部植物 (${plantDatabase.length})</button>`;
+        
+        availableCategories.forEach(cat => {
+            let count = plantDatabase.filter(p => p.mainCategory === cat).length;
+            html += `<button class="cat-chip ${selectedCategory===cat?'active':''}" id="chip-${cat}" onclick="selectCategory('${cat}')">🌿 ${cat} (${count})</button>`;
+        });
+
+        // 錯題本小橢圓膠囊按鈕
+        if (wrongBook.length > 0) {
+            html += `<button class="cat-chip cat-chip-wrong ${selectedCategory==='WRONG_BOOK'?'active':''}" id="chip-WRONG_BOOK" onclick="selectCategory('WRONG_BOOK')">🔥 錯題重考 (${wrongBook.length})</button>`;
+        }
+
+        document.getElementById('cat-chips-box').innerHTML = html;
+        document.getElementById('category-selector-container').style.display = 'block';
+        document.getElementById('wrong-count-badge').innerText = wrongBook.length;
+    }
+
+    function selectCategory(cat) {
+        selectedCategory = cat;
+        document.querySelectorAll('.cat-chip').forEach(btn => btn.classList.remove('active'));
+        let targetChip = document.getElementById(`chip-${cat}`);
+        if (targetChip) targetChip.classList.add('active');
+    }
+
+    function startQuizAction() {
+        if (selectedCategory === 'WRONG_BOOK') {
+            let book = getStoredWrongBook();
+            if (book.length === 0) { alert("目前錯題本為空！"); return; }
+            document.getElementById('setup-box').style.display = 'none';
+            document.getElementById('quiz-screen').style.display = 'block';
+            document.getElementById('mode-selector-bar').style.display = 'none';
+
+            currentIndex = 0; scoreCount = 0; sessionUserAnswers = [];
+            currentQuestions = book.map(item => item.question).sort(() => 0.5 - Math.random());
+            showQuestion();
+        } else {
+            if (selectedCategory === 'ALL') filteredPlantDatabase = [...plantDatabase];
+            else filteredPlantDatabase = plantDatabase.filter(p => p.mainCategory === selectedCategory);
+
+            if (filteredPlantDatabase.length < 4) { alert(`【${selectedCategory}】類別下的植物數量少於 4 株，請選擇其他類別！`); return; }
+            document.getElementById('setup-box').style.display = 'none';
+            document.getElementById('quiz-screen').style.display = 'block';
+            document.getElementById('mode-selector-bar').style.display = 'flex';
+            initQuiz();
+        }
+    }
+
+    function backToScopeSelection() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('setup-box').style.display = 'block';
+        renderCategorySelector();
+    }
+
+    function handleModeSwitch(newMode) {
+        if (newMode === currentMode) return;
+        if (currentIndex > 0 && document.getElementById('quiz-screen').style.display !== 'none') {
+            if (!confirm("⚠️ 確定要切換模式嗎？目前的作答進度將會遺失！")) return;
+        }
+        currentMode = newMode;
+        document.getElementById('mode-practice').classList.toggle('active', newMode === 'practice');
+        document.getElementById('mode-exam').classList.toggle('active', newMode === 'exam');
+        initQuiz();
+    }
+
+    function initQuiz() {
+        currentIndex = 0; scoreCount = 0; sessionUserAnswers = [];
+        document.getElementById('quiz-screen').style.display = 'block';
+        document.getElementById('result-screen').style.display = 'none';
+        
+        let targetTotal = currentMode === 'practice' ? Math.min(10, filteredPlantDatabase.length) : Math.min(50, filteredPlantDatabase.length);
+        currentQuestions = generateQuestions(targetTotal);
+        showQuestion();
+    }
+
+    function getTrueSentence(plant, count = 2) {
+        let pool = [...plant.traitsPool].sort(() => 0.5 - Math.random());
+        return pool.slice(0, Math.min(count, pool.length)).join('，');
+    }
+
+    function getConfusingFalseSentence(target, distractor) {
+        let targetPool = [...target.traitsPool].sort(() => 0.5 - Math.random());
+        let distractorPool = [...distractor.traitsPool].filter(t => !isFragmentMatching(target, t)).sort(() => 0.5 - Math.random());
+        let fakeTrait = distractorPool.length > 0 ? distractorPool[0] : '落葉喬木';
+        return (Math.random() > 0.4 && targetPool.length > 0) ? `${targetPool[0]}，${fakeTrait}` : (distractorPool.slice(0, 2).join('，') || fakeTrait);
+    }
+
+    function generateQuestions(totalNum) {
+        let questions = [];
+        let shuffled = [...filteredPlantDatabase].sort(() => 0.5 - Math.random());
+        let allOrigins = Array.from(new Set(plantDatabase.map(p => p.origin).filter(o => o && o !== '未標示')));
+        let allFamilies = Array.from(new Set(plantDatabase.map(p => p.family).filter(f => f && f !== '未標示')));
+        let allEnvironments = Array.from(new Set(plantDatabase.map(p => p.environment).filter(e => e && e !== '')));
+
+        for (let i = 0; i < totalNum; i++) {
+            let target = shuffled[i % shuffled.length];
+            let wrongPool = filteredPlantDatabase.filter(p => p.id !== target.id).sort(() => 0.5 - Math.random());
+            let lockedImages = [...target.images].sort(() => 0.5 - Math.random()).slice(0, Math.min(2, target.images.length));
+
+            let candidateTypes = [0, 1, 3, 4, 5, 6, 7];
+            if (target.environment && target.environment.trim() !== '' && allEnvironments.length >= 4) candidateTypes.push(2);
+            let patternIndex = candidateTypes[Math.floor(Math.random() * candidateTypes.length)];
+
+            let q = { typeTag: '', plant: target, rawTitle: '', showImgType: 'none', lockedImages: lockedImages, fourImgPlants: [], fourImgLocked: [], relatedPlants: [], options: [], correctOptions: [], isMultipleChoice: false };
+
+            if (patternIndex === 0) {
+                q.typeTag = '【單圖科別專題】'; q.showImgType = 'single'; q.isMultipleChoice = false; q.relatedPlants = [target];
+                q.rawTitle = `圖示植物所屬之「科別」為何？（單選題）`;
+                let wrongFams = allFamilies.filter(f => f !== target.family).sort(() => 0.5 - Math.random()).slice(0, 3);
+                while (wrongFams.length < 3) wrongFams.push('豆科');
+                let rawOpts = [{ text: target.family, isTrue: true }, { text: wrongFams[0], isTrue: false }, { text: wrongFams[1], isTrue: false }, { text: wrongFams[2], isTrue: false }].sort(() => 0.5 - Math.random());
+                q.options = rawOpts.map(o => o.text); q.correctOptions = [rawOpts.findIndex(o => o.isTrue)];
+            } else if (patternIndex === 1) {
+                q.typeTag = '【無圖科別專題】'; q.showImgType = 'none'; q.isMultipleChoice = false; q.relatedPlants = [target];
+                q.rawTitle = `請問【${target.name}】屬於下列哪一個科別？（單選題）`;
+                let wrongFams = allFamilies.filter(f => f !== target.family).sort(() => 0.5 - Math.random()).slice(0, 3);
+                while (wrongFams.length < 3) wrongFams.push('桃金孃科');
+                let rawOpts = [{ text: target.family, isTrue: true }, { text: wrongFams[0], isTrue: false }, { text: wrongFams[1], isTrue: false }, { text: wrongFams[2], isTrue: false }].sort(() => 0.5 - Math.random());
+                q.options = rawOpts.map(o => o.text); q.correctOptions = [rawOpts.findIndex(o => o.isTrue)];
+            } else if (patternIndex === 2 && target.environment && target.environment.trim() !== '') {
+                q.typeTag = '【單圖環境條件專題】'; q.showImgType = 'single'; q.isMultipleChoice = false; q.relatedPlants = [target];
+                q.rawTitle = `圖示植物適應之「生長環境條件」為何？（單選題）`;
+                let wrongEnvs = allEnvironments.filter(e => e !== target.environment).sort(() => 0.5 - Math.random()).slice(0, 3);
+                let rawOpts = [{ text: target.environment, isTrue: true }, { text: wrongEnvs[0] || '半日照環境', isTrue: false }, { text: wrongEnvs[1] || '低海拔向陽處', isTrue: false }, { text: wrongEnvs[2] || '耐陰林下環境', isTrue: false }].sort(() => 0.5 - Math.random());
+                q.options = rawOpts.map(o => o.text); q.correctOptions = [rawOpts.findIndex(o => o.isTrue)];
+            } else if (patternIndex === 3) {
+                q.typeTag = '【無圖原產地專題】'; q.showImgType = 'none'; q.isMultipleChoice = false; q.relatedPlants = [target];
+                q.rawTitle = `請問【${target.name}】之原產地為何？（單選題）`;
+                let wrongOrigins = allOrigins.filter(o => o !== target.origin).sort(() => 0.5 - Math.random()).slice(0, 3);
+                while (wrongOrigins.length < 3) wrongOrigins.push('熱帶亞洲及澳洲');
+                let rawOpts = [{ text: target.origin, isTrue: true }, { text: wrongOrigins[0], isTrue: false }, { text: wrongOrigins[1], isTrue: false }, { text: wrongOrigins[2], isTrue: false }].sort(() => 0.5 - Math.random());
+                q.options = rawOpts.map(o => o.text); q.correctOptions = [rawOpts.findIndex(o => o.isTrue)];
+            } else if (patternIndex === 4) {
+                q.typeTag = '【環境生態專題題】'; q.showImgType = 'none'; q.isMultipleChoice = true;
+                let topicPool = [{ topic: '具誘鳥或吸引鳥類取食功能', key: '鳥' }, { topic: '適合作為蜜源或誘蝶植物', key: '蜜源' }, { topic: '適應半日照或林下耐陰環境', key: '林下' }, { topic: '適合作為優質經濟造林或家具建材樹種', key: '造林' }, { topic: '全日照向陽生長環境', key: '全日照' }];
+                let chosenTopic = topicPool[Math.floor(Math.random() * topicPool.length)];
+                let matches = filteredPlantDatabase.filter(p => isFragmentMatching(p, chosenTopic.key)).sort(() => 0.5 - Math.random());
+                let nonMatches = filteredPlantDatabase.filter(p => !isFragmentMatching(p, chosenTopic.key)).sort(() => 0.5 - Math.random());
+                let numMatch = Math.min(matches.length, Math.max(1, Math.min(3, Math.floor(Math.random() * 3) + 1)));
+                let rawPlants = [...matches.slice(0, numMatch), ...nonMatches.slice(0, 4 - numMatch)].sort(() => 0.5 - Math.random());
+                while (rawPlants.length < 4 && wrongPool.length > 0) { let extra = wrongPool.pop(); if (!rawPlants.some(p => p.id === extra.id)) rawPlants.push(extra); }
+                q.rawTitle = `下列哪些植物符合「${chosenTopic.topic}」之條件？（複選題）`;
+                q.options = rawPlants.map(p => p.name); q.relatedPlants = rawPlants; q.correctOptions = [];
+                rawPlants.forEach((p, idx) => { if (isFragmentMatching(p, chosenTopic.key)) q.correctOptions.push(idx); });
+                if (q.correctOptions.length === 0) q.correctOptions = [0];
+            } else if (patternIndex === 5 || patternIndex === 6) {
+                q.typeTag = '【單圖綜合敘述題】'; q.showImgType = 'single'; q.isMultipleChoice = true;
+                let askCorrect = Math.random() > 0.4;
+                q.rawTitle = `有關圖示植物之敘述哪些${askCorrect ? '正確' : '錯誤'}？（複選題）`;
+                let numTrue = Math.max(1, Math.min(3, Math.floor(Math.random() * 3) + 1));
+                let numFalse = 4 - numTrue;
+                let rawList = [];
+                for (let k = 0; k < numTrue; k++) rawList.push({ text: getTrueSentence(target, Math.floor(Math.random() * 2) + 2), plant: target, isFactTrue: true });
+                for (let k = 0; k < numFalse; k++) {
+                    let distractor = wrongPool[k % wrongPool.length] || target;
+                    rawList.push({ text: getConfusingFalseSentence(target, distractor), plant: distractor, isFactTrue: false });
+                }
+                rawList.sort(() => 0.5 - Math.random());
+                q.options = rawList.map(item => item.text); q.relatedPlants = rawList.map(item => item.plant); q.correctOptions = [];
+                rawList.forEach((item, idx) => {
+                    if (askCorrect && item.isFactTrue) q.correctOptions.push(idx);
+                    if (!askCorrect && !item.isFactTrue) q.correctOptions.push(idx);
+                });
+                if (q.correctOptions.length === 0) q.correctOptions = [0];
+            } else {
+                q.typeTag = '【圖鑑辨識單選題】'; q.showImgType = 'four'; q.isMultipleChoice = false;
+                let fourList = [{p: target, c: true}, {p: wrongPool[0] || target, c: false}, {p: wrongPool[1] || target, c: false}, {p: wrongPool[2] || target, c: false}].sort(() => 0.5 - Math.random());
+                q.fourImgPlants = fourList.map(item => item.p);
+                q.fourImgLocked = q.fourImgPlants.map(p => (p && p.images && p.images.length > 0) ? p.images[Math.floor(Math.random() * p.images.length)] : '');
+                q.relatedPlants = q.fourImgPlants;
+                q.rawTitle = `下列何者照片為【${target.name}】？（單選題）`;
+                q.options = ['照片 A', '照片 B', '照片 C', '照片 D'];
+                q.correctOptions = [fourList.findIndex(item => item.c)];
+            }
+            questions.push(q);
+        }
+        return questions;
+    }
+
+    function showQuestion() {
+        isAnswerSubmitted = false; userSelectedOptions = [];
+        let q = currentQuestions[currentIndex];
+        
+        let scopeTag = (selectedCategory === 'WRONG_BOOK') ? '【錯題消滅】' : (selectedCategory === 'ALL' ? '' : `[${selectedCategory}] `);
+        document.getElementById('question-text').innerHTML = `第 ${currentIndex + 1} 題：${scopeTag}${q.rawTitle}`;
+        document.getElementById('question-count').innerText = `題目 ${currentIndex + 1} / ${currentQuestions.length}`;
+        document.getElementById('score-display').innerText = `得分：${scoreCount} 題`;
+        document.getElementById('progress').style.width = `${((currentIndex) / currentQuestions.length) * 100}%`;
+        document.getElementById('question-type-tag').innerText = q.typeTag;
+
+        let singleBox = document.getElementById('single-img-container');
+        let fourBox = document.getElementById('four-img-container');
+
+        if (q.showImgType === 'four') {
+            singleBox.style.display = 'none'; fourBox.style.display = 'grid';
+            ['A', 'B', 'C', 'D'].forEach((key, idx) => {
+                document.getElementById(`img-${key}`).src = q.fourImgLocked[idx];
+                document.getElementById(`img-card-${key}`).className = 'img-card';
+            });
+        } else if (q.showImgType === 'single') {
+            fourBox.style.display = 'none'; singleBox.style.display = 'flex';
+            currentPlantImages = q.lockedImages;
+            currentImageIndex = 0; 
+            updateImageDisplay();
+        } else {
+            singleBox.style.display = 'none'; fourBox.style.display = 'none';
+        }
+
+        let container = document.getElementById('options-container'); container.innerHTML = '';
+        if (q.showImgType !== 'four') {
+            ['A', 'B', 'C', 'D'].forEach((label, optIdx) => {
+                let optText = q.options[optIdx] || '';
+                let btn = document.createElement('button');
+                btn.className = 'option-btn'; btn.id = `opt-btn-${optIdx}`;
+                btn.innerHTML = `<span><b>${label}.</b> ${optText}</span>`;
+                btn.onclick = () => selectOption(optIdx);
+                container.appendChild(btn);
+            });
+        }
+        
+        document.getElementById('confirm-btn').innerText = (currentMode === 'exam' && selectedCategory !== 'WRONG_BOOK') ? (currentIndex === currentQuestions.length - 1 ? "交卷並計算成績" : "下一題 ➔") : "確認答案";
+        document.getElementById('confirm-btn').style.display = 'block';
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('feedback-box').style.display = 'none';
+    }
+
+    function changeImage(dir) {
+        if (currentPlantImages.length <= 1) return;
+        currentImageIndex = (currentImageIndex + dir + currentPlantImages.length) % currentPlantImages.length;
+        updateImageDisplay();
+    }
+
+    function updateImageDisplay() {
+        document.getElementById('plant-image').src = currentPlantImages[currentImageIndex];
+        document.getElementById('img-nav-text').innerText = `部位圖片 ${currentImageIndex + 1} / ${currentPlantImages.length} (隨機2張)`;
+    }
+
+    function toggleFourImgSelect(key) {
+        if (isAnswerSubmitted) return;
+        let q = currentQuestions[currentIndex], optIdx = ['A', 'B', 'C', 'D'].indexOf(key);
+        if (!q.isMultipleChoice) {
+            userSelectedOptions = [optIdx];
+            ['A', 'B', 'C', 'D'].forEach(k => document.getElementById(`img-card-${k}`).classList.remove('selected'));
+            document.getElementById(`img-card-${key}`).classList.add('selected');
+        } else {
+            let pos = userSelectedOptions.indexOf(optIdx);
+            if (pos > -1) { userSelectedOptions.splice(pos, 1); document.getElementById(`img-card-${key}`).classList.remove('selected'); }
+            else { userSelectedOptions.push(optIdx); document.getElementById(`img-card-${key}`).classList.add('selected'); }
+        }
+    }
+
+    function selectOption(optIdx) {
+        if (isAnswerSubmitted) return;
+        let q = currentQuestions[currentIndex], btn = document.getElementById(`opt-btn-${optIdx}`);
+        if (!q.isMultipleChoice) {
+            userSelectedOptions = [optIdx];
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        } else {
+            let pos = userSelectedOptions.indexOf(optIdx);
+            if (pos > -1) { userSelectedOptions.splice(pos, 1); btn.classList.remove('selected'); }
+            else { userSelectedOptions.push(optIdx); btn.classList.add('selected'); }
+        }
+    }
+
+    function buildPlantDetailHtml(p, customImg = null) {
+        let randImg = customImg || ((p.images && p.images.length > 0) ? p.images[0] : '');
+        let textHtml = `<b>植物名稱：</b>${p.name}<br>`;
+        if (p.mainCategory) textHtml += `<b>大類分類：</b>${p.mainCategory}<br>`;
+        if (p.family && p.family !== '未標示') textHtml += `<b>科別：</b>${p.family.replace(/^科別：/, '')}<br>`;
+        if (p.category) textHtml += `<b>分類：</b>${p.category.replace(/^分類：/, '')}<br>`;
+        if (p.origin && p.origin !== '未標示') textHtml += `<b>原產地：</b>${p.origin.replace(/^原產地：/, '')}<br>`;
+        if (p.environment && p.environment.trim() !== '') textHtml += `<b>生長環境：</b>${p.environment.replace(/^環境：/, '')}<br>`;
+        if (p.features) textHtml += `<b>形態特徵：</b>${p.features.replace(/^特徵：/, '')}<br>`;
+        if (p.usage) textHtml += `<b>景觀用途：</b>${p.usage.replace(/^用途：/, '')}<br>`;
+        if (p.ecology) textHtml += `<b>生態價值：</b>${p.ecology.replace(/^生態：/, '')}<br>`;
+        if (p.propagation) textHtml += `<b>繁殖方式：</b>${p.propagation.replace(/^繁殖：/, '')}<br>`;
+        if (p.floweringSeason) textHtml += `<b>開花季節：</b>${p.floweringSeason.replace(/^花期：/, '')}<br>`;
+
+        return `<div class="id-card-layout"><div class="id-card-text">${textHtml}</div>${randImg ? `<img src="${randImg}" class="id-card-thumb" alt="${p.name}">` : ''}</div>`;
+    }
+
+    function confirmAnswer() {
+        let q = currentQuestions[currentIndex];
+        if (userSelectedOptions.length === 0) { alert("請先選擇您的答案！"); return; }
+        sessionUserAnswers.push([...userSelectedOptions]);
+
+        let sortedUser = [...userSelectedOptions].sort((a,b) => a - b);
+        let sortedCorrect = [...q.correctOptions].sort((a,b) => a - b);
+        let isCorrect = (sortedUser.length === sortedCorrect.length) && sortedUser.every((val, index) => val === sortedCorrect[index]);
+
+        if (isCorrect) {
+            scoreCount++;
+            if (selectedCategory === 'WRONG_BOOK') removeFromWrongBook(q);
+        } else {
+            // 完整收錄題目、當時選項、自己選的答案
+            saveToWrongBook({
+                question: q,
+                userAnswers: [...userSelectedOptions]
+            });
+        }
+
+        if (currentMode === 'exam' && selectedCategory !== 'WRONG_BOOK') {
+            currentIndex++;
+            if (currentIndex < currentQuestions.length) showQuestion();
+            else renderFinalResults();
+        } else {
+            isAnswerSubmitted = true; document.getElementById('confirm-btn').style.display = 'none';
+            if (q.showImgType === 'four') {
+                ['A', 'B', 'C', 'D'].forEach((key, idx) => {
+                    let imgCard = document.getElementById(`img-card-${key}`);
+                    imgCard.classList.remove('selected');
+                    if (q.correctOptions.includes(idx)) imgCard.classList.add('correct');
+                    else if (userSelectedOptions.includes(idx)) imgCard.classList.add('wrong');
+                });
+            } else {
+                q.options.forEach((optText, idx) => {
+                    let btn = document.getElementById(`opt-btn-${idx}`);
+                    if (q.correctOptions.includes(idx)) btn.classList.add('correct');
+                    else if (userSelectedOptions.includes(idx)) btn.classList.add('wrong');
+                });
+            }
+
+            let feedbackHtml = '';
+            if (q.relatedPlants && q.relatedPlants.length > 1) {
+                q.relatedPlants.forEach((p, idx) => {
+                    let label = q.showImgType === 'four' ? `照片 ${['A', 'B', 'C', 'D'][idx]}` : `選項 ${['A', 'B', 'C', 'D'][idx]}（${p.name}）`;
+                    let isOptCorrect = q.correctOptions.includes(idx);
+                    let customThumb = q.showImgType === 'four' ? q.fourImgLocked[idx] : null;
+                    feedbackHtml += `<details><summary>${isOptCorrect ? '✅ 正解' : '❌ 干擾'} ${label}</summary><div class="details-content">${buildPlantDetailHtml(p, customThumb)}</div></details>`;
+                });
+            } else {
+                feedbackHtml = buildPlantDetailHtml(q.plant, q.lockedImages[0]);
+            }
+
+            let titlePrefix = isCorrect ? (selectedCategory === 'WRONG_BOOK' ? '🎉 答對了！已從錯題本中移除！' : '✅ 回答正確！解析資訊：') : '❌ 答案不完整/錯誤！解析資訊：';
+            document.getElementById('feedback-title').innerText = titlePrefix;
+            document.getElementById('feedback-content').innerHTML = feedbackHtml;
+            document.getElementById('feedback-box').style.display = 'block';
+            document.getElementById('next-btn').style.display = 'block';
+        }
+    }
+
+    function nextQuestion() {
+        currentIndex++;
+        if (currentIndex < currentQuestions.length) showQuestion();
+        else renderFinalResults();
+    }
+
+    // 渲染錯題檢討卡片 HTML 生成器（考試結束與錯題本完全共用）
+    function generateReviewCardHtml(q, uAns, cardTitle) {
+        let mediaHtml = '';
+        if (q.showImgType === 'single') {
+            let thumb = (q.lockedImages && q.lockedImages.length > 0) ? q.lockedImages[0] : (q.plant.images[0] || '');
+            mediaHtml = `<div class="review-img-box"><img src="${thumb}" class="plant-img" alt="植物照片"></div>`;
+        } else if (q.showImgType === 'four') {
+            let fourItems = ['A', 'B', 'C', 'D'].map((key, kIdx) => {
+                let fImg = (q.fourImgLocked && q.fourImgLocked[kIdx]) ? q.fourImgLocked[kIdx] : (q.fourImgPlants[kIdx]?.images[0] || '');
+                let isCorrectOpt = q.correctOptions.includes(kIdx);
+                let isUserOpt = uAns.includes(kIdx);
+                let borderStyle = isCorrectOpt ? 'border-color: #2e7d32; box-shadow: 0 0 8px rgba(46,125,50,0.5);' : (isUserOpt ? 'border-color: #c62828; box-shadow: 0 0 8px rgba(198,40,40,0.5);' : '');
+                return `<div class="review-four-card" style="${borderStyle}"><span class="img-card-label">${key}</span><img src="${fImg}" style="width:100%; height:100%; object-fit:contain;" alt="Photo ${key}"></div>`;
+            }).join('');
+            mediaHtml = `<div class="review-four-grid">${fourItems}</div>`;
+        }
+
+        let optionsHtml = '';
+        if (q.showImgType !== 'four') {
+            let opts = ['A', 'B', 'C', 'D'].map((label, optIdx) => {
+                let optText = q.options[optIdx] || '';
+                let isCorrectOpt = q.correctOptions.includes(optIdx);
+                let isUserOpt = uAns.includes(optIdx);
+                let optClass = 'option-btn' + (isCorrectOpt ? ' correct' : (isUserOpt ? ' wrong' : ''));
+                return `<div class="${optClass}" style="cursor: default; pointer-events: none; margin-bottom: 6px;"><span><b>${label}.</b> ${optText}</span><span>${isCorrectOpt ? '✅ 正解' : (isUserOpt ? '❌ 選錯' : '')}</span></div>`;
+            }).join('');
+            optionsHtml = `<div style="margin-bottom: 12px;">${opts}</div>`;
+        }
+
+        let idCardsHtml = '';
+        if (q.relatedPlants && q.relatedPlants.length > 1) {
+            q.relatedPlants.forEach((p, kIdx) => {
+                let lbl = q.showImgType === 'four' ? `照片 ${['A', 'B', 'C', 'D'][kIdx]}` : `選項 ${['A', 'B', 'C', 'D'][kIdx]}`;
+                let isOptCorrect = q.correctOptions.includes(kIdx);
+                let customThumb = (q.fourImgLocked && q.fourImgLocked[kIdx]) ? q.fourImgLocked[kIdx] : null;
+                idCardsHtml += `<details style="margin-top: 6px;"><summary>${isOptCorrect ? '✅ 正解' : '❌ 干擾'} ${lbl}：${p.name}</summary><div class="details-content">${buildPlantDetailHtml(p, customThumb)}</div></details>`;
+            });
+        } else {
+            let singleThumb = (q.lockedImages && q.lockedImages[0]) ? q.lockedImages[0] : null;
+            idCardsHtml = buildPlantDetailHtml(q.plant, singleThumb);
+        }
+
+        return `
+            <div class="review-card">
+                <div class="review-title">${cardTitle}</div>
+                ${mediaHtml}${optionsHtml}
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">${idCardsHtml}</div>
+            </div>
+        `;
+    }
+
+    function renderFinalResults() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        
+        let correctTotal = 0;
+        let reviewHtml = '';
+
+        currentQuestions.forEach((q, idx) => {
+            let uAns = sessionUserAnswers[idx] || [];
+            let sortedUser = [...uAns].sort((a,b) => a - b);
+            let sortedCorrect = [...q.correctOptions].sort((a,b) => a - b);
+            let isCorrect = (sortedUser.length === sortedCorrect.length) && sortedUser.every((val, index) => val === sortedCorrect[index]);
+            
+            if (isCorrect) {
+                correctTotal++;
+            } else {
+                reviewHtml += generateReviewCardHtml(q, uAns, `❌ 第 ${idx + 1} 題：${q.rawTitle}`);
+            }
+        });
+
+        let pct = Math.round((correctTotal / currentQuestions.length) * 100);
+        document.getElementById('final-percentage').innerText = `${pct}%`;
+        document.getElementById('result-summary').innerText = `測驗完成！總共作答 ${currentQuestions.length} 題，答對 ${correctTotal} 題！`;
+        
+        if (correctTotal === currentQuestions.length) {
+            document.getElementById('review-list').innerHTML = `<p style="color: var(--primary); font-weight: bold; padding: 20px 0;">🎉 太厲害了！本次測驗全對，沒有錯題！</p>`;
+        } else {
+            document.getElementById('review-list').innerHTML = reviewHtml;
+        }
+
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        saveExamHistory({
+            time: timeStr,
+            timestamp: now.getTime(),
+            scope: (selectedCategory === 'WRONG_BOOK') ? '錯題消滅戰' : (selectedCategory === 'ALL' ? '全部植物' : selectedCategory),
+            mode: (selectedCategory === 'WRONG_BOOK') ? '錯題練習' : (currentMode === 'practice' ? '練習模式' : '模擬考'),
+            score: correctTotal,
+            total: currentQuestions.length,
+            percentage: pct
+        });
+        renderCategorySelector();
+    }
+
+    // --- 頁面 2：時間軸篩選與折線圖 ---
+    function setTimeFilter(tf) {
+        currentTimeFilter = tf;
+        ['all', 'day', 'week', 'month'].forEach(k => {
+            document.getElementById(`tf-${k}`).classList.toggle('active', k.toUpperCase() === tf);
+        });
+        renderHistoryTab();
+    }
+
+    function renderHistoryTab() {
+        let list = getStoredHistory();
+        let box = document.getElementById('history-list-box');
+        
+        // 依據時間軸篩選
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+        let filteredList = list.filter(item => {
+            let itemTime = item.timestamp || new Date(item.time).getTime();
+            if (currentTimeFilter === 'DAY') return (now - itemTime) <= oneDay;
+            if (currentTimeFilter === 'WEEK') return (now - itemTime) <= 7 * oneDay;
+            if (currentTimeFilter === 'MONTH') return (now - itemTime) <= 30 * oneDay;
+            return true;
+        });
+
+        if (filteredList.length === 0) {
+            box.innerHTML = `<p style="text-align: center; color: #888; padding: 20px;">該時間區間內尚未有考試記錄！</p>`;
+        } else {
+            let html = '';
+            filteredList.slice().reverse().forEach(item => {
+                let isPass = item.percentage >= 60;
+                html += `
+                    <div class="history-item">
+                        <div>
+                            <b>${item.time}</b> <span style="color:#666; font-size:0.8rem;">[${item.scope} - ${item.mode}]</span><br>
+                            答對 ${item.score} / ${item.total} 題
+                        </div>
+                        <div class="history-badge ${isPass ? 'badge-pass' : 'badge-fail'}">${item.percentage}% (${isPass ? '及格' : '不及格'})</div>
+                    </div>
+                `;
+            });
+            box.innerHTML = html;
+        }
+
+        // 繪製/更新 Chart.js
+        let ctx = document.getElementById('scoreChart').getContext('2d');
+        if (scoreChartInstance) scoreChartInstance.destroy();
+
+        let labels = filteredList.map((item, idx) => `#${idx+1} (${item.time.split(' ')[0]})`);
+        let dataPoints = filteredList.map(item => item.percentage);
+
+        scoreChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '測驗得分率 (%)',
+                    data: dataPoints,
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46, 125, 50, 0.12)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#1b5e20'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { min: 0, max: 100, ticks: { stepSize: 20 } }
+                }
+            }
+        });
+    }
+
+    // --- 頁面 3：完整還原累積錯題本清單 ---
+    function renderWrongBookTab() {
+        let book = getStoredWrongBook();
+        let box = document.getElementById('wrong-book-list');
+        document.getElementById('wrong-count-badge').innerText = book.length;
+
+        if (book.length === 0) {
+            box.innerHTML = `<p style="text-align: center; color: #2e7d32; padding: 30px; font-weight: bold;">🎉 目前錯題本為空！沒有任何累積錯題！</p>`;
+            return;
+        }
+
+        let html = '';
+        book.forEach((item, idx) => {
+            let q = item.question;
+            let uAns = item.userAnswers || [];
+            let cardTitle = `<div style="display:flex; justify-content:space-between; align-items:center;"><span>❌ 錯題 #${idx + 1}：${q.rawTitle}</span><button class="cat-chip" style="font-size:0.75rem; padding:2px 8px; color:#c62828; border-color:#c62828;" onclick="removeSingleWrong(${idx})">手動移除</button></div>`;
+            html += generateReviewCardHtml(q, uAns, cardTitle);
+        });
+        box.innerHTML = html;
+    }
+
+    function removeSingleWrong(index) {
+        let book = getStoredWrongBook();
+        book.splice(index, 1);
+        localStorage.setItem('plant_quiz_wrong_book_v2', JSON.stringify(book));
+        renderWrongBookTab();
+        renderCategorySelector();
+    }
+
+    function clearWrongBook() {
+        if (confirm("⚠️ 確定要清空所有累積的錯題本嗎？")) {
+            localStorage.removeItem('plant_quiz_wrong_book_v2');
+            renderWrongBookTab();
+            renderCategorySelector();
+        }
+    }
+</script>
+</body>
+</html>
